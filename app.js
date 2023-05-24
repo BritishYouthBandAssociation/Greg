@@ -22,7 +22,7 @@ server.use(express.urlencoded({
 	extended: true
 }));
 
-loadRoutes(server, "./routes");
+loadRoutes(server, path.join(__dirname, "routes"));
 
 server.use(formData.parse({
 	uploadDir: os.tmpdir(),
