@@ -5,30 +5,35 @@ const WordPressHelper = require("../helpers/WordPressHelper");
 
 const wpConfig = require("../config/wordpress.json");
 
+const { downloadFile } = require("../helpers/HttpRequestHelper");
 const wpHelper = new WordPressHelper(wpConfig);
 const router = express.Router();
 
 router.get("/new-post/:id", async (req, res) => {
 	const post = await wpHelper.getPost(req.params.id);
-	const excerpt = post.excerpt.rendered.replace(/(<([^>]+)>)/gi, "");;
-
+	
 	if(post.status != "pending"){
 		res.status(400).send(`Expected status to be 'pending' but got '${post.status}'`);
 		return;
 	}
-
+	
+	const excerpt = encodeURIComponent(post.title.rendered.replace(/(<([^>]+)>)/gi, ""));
 	const media = await wpHelper.getMedia(post.featured_media);
 
-	console.log(media.guid.rendered);
-	console.log(excerpt);
+	if(!media?.guid?.rendered){
+		res.status(400).send("Missing image!");
+	}
 
 	const [cover, newsImg] = await Promise.all([
-		fetch(`https://dev.template.byba.online/wordpresscover?image=${media.guid.rendered}`).then(result => result.blob()),
-		fetch(`https://dev.template.byba.online/squarenews?image=${media.guid.rendered}&text=${excerpt}`).then(result => result.blob())
+		downloadFile(`https://dev.template.byba.online/wordpresscover?image=${media.guid.rendered}`),
+		downloadFile(`https://dev.template.byba.online/squarenews?image=${media.guid.rendered}&text=${excerpt}`)
 	]);
 
-	res.type(newsImg.type);
-	newsImg.arrayBuffer().then(buf => res.send(Buffer.from(buf)));
+	await wpHelper.uploadFeaturedMedia(post.id, cover, post.title.rendered + ".png", "image/png");
+	await wpHelper.setPostStatus(post.id, 'publish');
+
+	res.type("image/png");
+	res.send(newsImg);
 });
 
 module.exports = {
