@@ -3,9 +3,10 @@
 const express = require('express');
 const WordPressHelper = require("../helpers/WordPressHelper");
 
-const wpConfig = require("../config/wordpress.json");
-
 const { downloadFile } = require("../helpers/HttpRequestHelper");
+const {stripTags } = require("../helpers/TextHelper");
+
+const wpConfig = require("../config/wordpress.json");
 const wpHelper = new WordPressHelper(wpConfig);
 const router = express.Router();
 
@@ -17,7 +18,8 @@ router.get("/new-post/:id", async (req, res) => {
 		return;
 	}
 	
-	const excerpt = encodeURIComponent(post.title.rendered.replace(/(<([^>]+)>)/gi, ""));
+	const title = encodeURIComponent(stripTags(post.title.rendered));
+	const excerpt = stripTags(post.content.rendered).split("\n")[0];
 	const media = await wpHelper.getMedia(post.featured_media);
 
 	if(!media?.guid?.rendered){
@@ -26,11 +28,14 @@ router.get("/new-post/:id", async (req, res) => {
 
 	const [cover, newsImg] = await Promise.all([
 		downloadFile(`https://dev.template.byba.online/wordpresscover?image=${media.guid.rendered}`),
-		downloadFile(`https://dev.template.byba.online/squarenews?image=${media.guid.rendered}&text=${excerpt}`)
+		downloadFile(`https://dev.template.byba.online/squarenews?image=${media.guid.rendered}&text=${title}`)
 	]);
 
 	await wpHelper.uploadFeaturedMedia(post.id, cover, post.title.rendered + ".png", "image/png");
-	await wpHelper.setPostStatus(post.id, 'publish');
+	await wpHelper.updatePost(post.id, {
+		status: 'publish',
+		excerpt
+	});
 
 	res.type("image/png");
 	res.send(newsImg);

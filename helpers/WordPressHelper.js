@@ -53,10 +53,8 @@ class WordPressHelper{
 		}).then(res => res.json());
 	}
 
-	async setFeaturedImage(postId, mediaId){
-		return await this.#postForJson(`posts/${postId}`, {
-			featured_media: mediaId
-		});
+	async setFeaturedImage(postId, featured_media){
+		return await this.updatePost(postId, {featured_media});
 	}
 
 	async uploadFeaturedMedia(postId, blob, name, mime){
@@ -65,9 +63,11 @@ class WordPressHelper{
 	}
 
 	async setPostStatus(postId, status){
-		return await this.#postForJson(`posts/${postId}`, {
-			status
-		});
+		return await this.updatePost(postId, {status});
+	}
+
+	async updatePost(postId, values){
+		return await this.#postForJson(`posts/${postId}`, values);
 	}
 }
 
